@@ -23,5 +23,5 @@ A simple Flask-based web application for managing plant care tasks like watering
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/your-username/plant-care-system.git
+git clone https://github.com/FilipooSVK/plant-care-system.git
 cd plant-care-system
