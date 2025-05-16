@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plant Task Calendar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #2a7f62;
+            color: white;
+        }
+        .card-wrapper {
+            background-color: #f4fdf9;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+        }
+        #calendar {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+        }
+        .top-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body class="container mt-4">
+    <h1 class="mb-4">Plant Task Calendar</h1>
+
+    <div class="top-controls">
+        <div class="d-flex align-items-center gap-2">
+            <label for="plantFilter" class="form-label mb-0">Filter by plant:</label>
+            <select id="plantFilter" class="form-select">
+                <option value="">All</option>
+                {% for name, id in plants %}
+                <option value="{{ id }}">{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-light" onclick="toggleTodayOnly(this)">Show Today Only</button>
+            <button class="btn btn-warning" onclick="exportMonth()">Export Month</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back</a>
+        </div>
+    </div>
+
+    <div class="card-wrapper">
+        <div id='calendar'></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script>
+        let calendar = null;
+        let todayOnly = false;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const calendarEl = document.getElementById('calendar');
+            const plantFilter = document.getElementById('plantFilter');
+
+            function loadCalendar(plantId = "") {
+                if (calendar) calendar.destroy();
+                calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    height: 'auto',
+                    locale: 'en',
+                    eventSources: [
+                        {
+                            url: '/api/events' + (plantId ? ('?plant_id=' + plantId) : ''),
+                            method: 'GET',
+                            failure: () => {
+                                alert('Failed to fetch events!');
+                            },
+                            extraParams: function() {
+                                return { todayOnly: todayOnly };
+                            }
+                        }
+                    ],
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek,listWeek'
+                    },
+                    eventClick: function(info) {
+                        const eventId = info.event.id;
+                        const confirmAction = confirm("Mark this task as done?");
+                        if (confirmAction) {
+                            fetch(`/mark_done/${eventId}`)
+                                .then(() => {
+                                    info.event.remove();
+                                });
+                        }
+                    },
+                    eventDidMount: function(info) {
+                        const tooltip = `${info.event.title}`;
+                        info.el.setAttribute('title', tooltip);
+                        info.el.classList.add('animate__animated', 'animate__fadeIn');
+                    }
+                });
+                calendar.render();
+            }
+
+            plantFilter.addEventListener('change', function () {
+                loadCalendar(this.value);
+            });
+
+            loadCalendar();
+        });
+
+        function toggleTodayOnly(button) {
+            todayOnly = !todayOnly;
+            button.textContent = todayOnly ? 'Show All' : 'Show Today Only';
+            const plantId = document.getElementById('plantFilter').value;
+            loadCalendar(plantId);
+        }
+
+        function exportMonth() {
+            alert('This feature will export current month events (not implemented).');
+        }
+
+        function loadCalendar(plantId = "") {
+            const calendarEl = document.getElementById('calendar');
+            if (calendar) calendar.destroy();
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                height: 'auto',
+                locale: 'en',
+                eventSources: [
+                    {
+                        url: '/api/events' + (plantId ? ('?plant_id=' + plantId) : ''),
+                        method: 'GET',
+                        extraParams: () => ({ todayOnly: todayOnly })
+                    }
+                ],
+                eventClick: function(info) {
+                    const eventId = info.event.id;
+                    if (confirm('Mark this task as done?')) {
+                        fetch(`/mark_done/${eventId}`).then(() => info.event.remove());
+                    }
+                }
+            });
+
+            calendar.render();
+        }
+    </script>
+</body>
+</html>

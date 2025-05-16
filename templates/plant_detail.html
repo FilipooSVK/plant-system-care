@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Detail</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #2a7f62;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        h1, h2 {
+            color: #2a7f62;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(to right, #d2f4ea, #b6f0e1);
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 30px;
+            font-size: 1.5rem;
+        }
+        .plant-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .plant-image:hover {
+            transform: scale(1.05);
+        }
+        .form-control.interval-input,
+        .form-control.rename-input {
+            max-width: 150px;
+        }
+        .form-section {
+            background-color: #ffffff;
+            color: #2a7f62;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .badge {
+            font-size: 1rem;
+        }
+        .badge-next {
+            background-color: #17a2b8;
+            margin-left: 10px;
+        }
+        .badge-next.watering {
+            background-color: #0dcaf0;
+        }
+        .badge-next.fertilizing {
+            background-color: #198754;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background-color: #2a7f62;
+            z-index: 10;
+            padding-top: 10px;
+        }
+        .today-badge {
+            background-color: #ffc107;
+            margin-left: 10px;
+        }
+        .task-item.hidden-completed {
+            display: none !important;
+        }
+        .task-item {
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .task-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            transform: scale(1.01);
+        }
+        .btn, .nav-link {
+            transition: background-color 0.3s, color 0.3s, transform 0.2s;
+        }
+        .btn:hover, .nav-link:hover {
+            transform: scale(1.02);
+            opacity: 0.9;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #fff;
+            color: #2a7f62;
+            font-weight: bold;
+        }
+        .nav-tabs .nav-link {
+            color: #fff;
+        }
+        .tab-content {
+            margin-top: 20px;
+        }
+        .task-type {
+            font-weight: bold;
+        }
+        .task-watering::before {
+            content: "\1F4A7 "; /* 💧 */
+        }
+        .task-fertilizing::before {
+            content: "\1F331 "; /* 🌱 */
+        }
+    </style>
+</head>
+<body class="container py-4">
+{% if request.args.get('message') %}
+<div class="alert alert-info">
+    {{ request.args.get('message') }}
+</div>
+{% endif %}
+
+<ul class="nav nav-tabs" id="plantTab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="details-tab" data-bs-toggle="tab" href="#details" role="tab">Details</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="tasks-tab" data-bs-toggle="tab" href="#tasks" role="tab">Tasks</a>
+    </li>
+</ul>
+<div class="tab-content" id="plantTabContent">
+    <div class="tab-pane fade show active" id="details" role="tabpanel">
+        <div class="form-section">
+            <div class="row g-4 align-items-start">
+                <div class="col-md-4 text-center">
+                    {% if plant[3] %}
+                        <img src="{{ url_for('static', filename=plant[3].replace('static/', '')) }}" alt="Plant Image" class="plant-image img-thumbnail mb-3" onclick="openLightbox(this.src)">
+                    {% else %}
+                        <img src="https://via.placeholder.com/250x250?text=No+Image" alt="No Image" class="plant-image img-thumbnail mb-3">
+                    {% endif %}
+                    <form action="{{ url_for('update_image', plant_id=plant_id) }}" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label">Upload New Image</label>
+                            <input type="file" name="image" accept="image/*" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-info btn-sm">Upload</button>
+                    </form>
+                </div>
+
+                <div class="col-md-8">
+                    <h1 id="plant-title" class="mb-3">{{ plant[0] }}</h1>
+
+                    {% set next_task = tasks|selectattr('done', 'equalto', 0)|sort(attribute='date')|list|first %}
+                    {% if next_task %}
+                        {% set date_diff = (next_task.date | todatetime('%Y-%m-%d') - (now() | todatetime('%Y-%m-%d'))).days %}
+                        <div class="mb-3">
+                            <span class="badge badge-next {{ next_task.type }}">
+                                Next {{ next_task.type }} in {{ date_diff }} day{{ 's' if date_diff != 1 else '' }}
+                            </span>
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <form id="rename-form" action="{{ url_for('rename_plant', plant_id=plant_id) }}" method="POST">
+                                <label class="form-label">Rename</label>
+                                <div class="input-group">
+                                    <input type="text" name="new_name" class="form-control rename-input" placeholder="New plant name" required>
+                                    <button type="submit" class="btn btn-info">Rename</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <form action="{{ url_for('edit_plant', plant_id=plant_id) }}" method="POST">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col">
+                                        <label class="form-label">Watering Interval (days)</label>
+                                        <input type="number" name="watering_interval" class="form-control interval-input" value="{{ plant[1] }}" required>
+                                    </div>
+                                    <div class="col">
+                                        <label class="form-label">Fertilizing Interval (days)</label>
+                                        <input type="number" name="fertilizing_interval" class="form-control interval-input" value="{{ plant[2] }}" required>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="submit" class="btn btn-primary">Save</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <form action="{{ url_for('delete_plant', plant_id=plant_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this plant?');" class="d-inline">
+                            <button type="submit" class="btn btn-danger">Delete Plant</button>
+                        </form>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">Back</a>
+                        <a href="{{ url_for('export_pdf', plant_id=plant_id) }}" class="btn btn-outline-light ms-2">Export PDF</a>
+                        <a href="{{ url_for('cleanup_duplicates') }}" class="btn btn-warning ms-2">Remove Duplicates</a>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5>Statistics</h5>
+                        <ul>
+                            <li>Total tasks: {{ tasks|length }}</li>
+                            <li>Completed: {{ tasks|selectattr('3')|list|length }}</li>
+                            <li>Last watering: {{ tasks|selectattr('2', 'equalto', 'watering')|selectattr('3')|map(attribute='1')|list|last }}</li>
+                            <li>Last fertilizing: {{ tasks|selectattr('2', 'equalto', 'fertilizing')|selectattr('3')|map(attribute='1')|list|last }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tasks" role="tabpanel">
+        <h2 class="task-header">
+            Tasks
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="hideCompleted" onchange="filterTasks()">
+                <label class="form-check-label" for="hideCompleted">Hide completed</label>
+            </div>
+        </h2>
+        <ul class="list-group mb-5" id="taskList">
+            {% for id, date, type, done in tasks %}
+                <li class="list-group-item d-flex justify-content-between align-items-center task-item{% if done %} hidden-completed{% endif %}" data-type="{{ type }}" data-done="{{ 1 if done else 0 }}">
+                    <div>
+                        <span class="task-type task-{{ type }}">{{ date }} - {{ type.capitalize() }}</span>
+                        {% if date == current_date %}<span class="badge today-badge">Today</span>{% endif %}
+                    </div>
+                    <div>
+                        <input type="checkbox" class="form-check-input me-2" onchange="toggleTask(this, {{ id }})" {% if done %}checked{% endif %}>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<script>
+function openLightbox(src) {
+    const w = window.open('', '_blank');
+    w.document.write(`<img src="${src}" style="width:100%">`);
+    w.document.title = "Full Image";
+}
+
+function filterTasks() {
+    const hideDone = document.getElementById('hideCompleted').checked;
+    const taskItems = document.querySelectorAll('.task-item');
+    taskItems.forEach(item => {
+        const isDone = item.dataset.done === '1';
+        item.classList.toggle('hidden-completed', hideDone && isDone);
+    });
+}
+
+function toggleTask(checkbox, taskId) {
+    const isDone = checkbox.checked;
+    fetch(`/${isDone ? 'mark_done' : 'unmark_done'}/${taskId}`)
+        .then(() => {
+            checkbox.closest('li').dataset.done = isDone ? '1' : '0';
+            filterTasks();
+        });
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
