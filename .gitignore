@@ -29,3 +29,5 @@ Thumbs.db
 *.bak
 Perenual API.txt
 plant_care_v1.py
+plant_care.py
+test.py
