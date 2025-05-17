@@ -14,10 +14,6 @@ A simple Flask-based web application for managing plant care tasks like watering
 - User-friendly responsive design
 - Dark mode toggle (optional)
 
-## 🖼️ Screenshots
-
-> Add screenshots of the main pages: Dashboard, Calendar, Plant Detail...
-
 ## 🛠️ Installation
 
 1. **Clone the repository:**
